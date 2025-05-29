@@ -4,6 +4,7 @@ namespace Livewire;
 
 use Livewire\Features\SupportDisablingBackButtonCache\HandlesDisablingBackButtonCache;
 use Livewire\Features\SupportPageComponents\HandlesPageComponents;
+use Livewire\Features\SupportReleaseTokens\HandlesReleaseTokens;
 use Livewire\Features\SupportJsEvaluation\HandlesJsEvaluation;
 use Livewire\Features\SupportFormObjects\HandlesFormObjects;
 use Livewire\Features\SupportValidation\HandlesValidation;
@@ -32,6 +33,7 @@ abstract class Component
     use HandlesValidation;
     use HandlesFormObjects;
     use HandlesJsEvaluation;
+    use HandlesReleaseTokens;
     use HandlesPageComponents;
     use HandlesDisablingBackButtonCache;
 
