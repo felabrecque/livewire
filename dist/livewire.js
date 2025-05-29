@@ -4755,6 +4755,9 @@ ${expression ? 'Expression: "' + expression + '"\n\n' : ""}`, el);
     };
   }
   function dispatchEvent(target, name, params, bubbles = true) {
+    if (typeof params === "string") {
+      params = [params];
+    }
     let e = new CustomEvent(name, { bubbles, detail: params });
     e.__livewire = { name, params, receivedBy: [] };
     target.dispatchEvent(e);
