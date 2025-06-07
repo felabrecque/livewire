@@ -6813,7 +6813,8 @@ var require_module_cjs8 = __commonJS({
         }
         let updateChildrenOnly = false;
         let skipChildren = false;
-        if (shouldSkipChildren(context.updating, () => skipChildren = true, from, to, () => updateChildrenOnly = true))
+        let skipUntil = (predicate) => context.skipUntilCondition = predicate;
+        if (shouldSkipChildren(context.updating, () => skipChildren = true, skipUntil, from, to, () => updateChildrenOnly = true))
           return;
         if (from.nodeType === 1 && window.Alpine) {
           window.Alpine.cloneNode(from, to);
@@ -6887,6 +6888,19 @@ var require_module_cjs8 = __commonJS({
           seedingMatchingId(currentTo, currentFrom);
           let toKey = context.getKey(currentTo);
           let fromKey = context.getKey(currentFrom);
+          if (context.skipUntilCondition) {
+            let fromDone = !currentFrom || context.skipUntilCondition(currentFrom);
+            let toDone = !currentTo || context.skipUntilCondition(currentTo);
+            if (fromDone && toDone) {
+              context.skipUntilCondition = null;
+            } else {
+              if (!fromDone)
+                currentFrom = currentFrom && getNextSibling(from, currentFrom);
+              if (!toDone)
+                currentTo = currentTo && getNextSibling(to, currentTo);
+              continue;
+            }
+          }
           if (!currentFrom) {
             if (toKey && fromKeyHoldovers[toKey]) {
               let holdover = fromKeyHoldovers[toKey];
@@ -7036,9 +7050,9 @@ var require_module_cjs8 = __commonJS({
       hook(...args, () => skip = true);
       return skip;
     }
-    function shouldSkipChildren(hook, skipChildren, ...args) {
+    function shouldSkipChildren(hook, skipChildren, skipUntil, ...args) {
       let skip = false;
-      hook(...args, () => skip = true, skipChildren);
+      hook(...args, () => skip = true, skipChildren, skipUntil);
       return skip;
     }
     var patched = false;
@@ -9784,7 +9798,7 @@ function start() {
   import_alpinejs5.default.interceptInit(import_alpinejs5.default.skipDuringClone((el) => {
     if (!Array.from(el.attributes).some((attribute) => matchesForLivewireDirective(attribute.name)))
       return;
-    if (el.hasAttribute("wire:id")) {
+    if (el.hasAttribute("wire:id") && !el.__livewire && !hasComponent(el.getAttribute("wire:id"))) {
       let component2 = initComponent(el);
       import_alpinejs5.default.onAttributeRemoved(el, "wire:id", () => {
         destroyComponent(component2.id);
@@ -9975,6 +9989,81 @@ on("effect", ({ component, effects }) => {
 
 // js/morph.js
 var import_alpinejs8 = __toESM(require_module_cjs());
+
+// js/features/supportSlots.js
+on("effect", ({ component, effects }) => {
+  let slots = effects.slots;
+  if (!slots)
+    return;
+  let parentId = component.el.getAttribute("wire:id");
+  Object.entries(slots).forEach(([childId, childSlots]) => {
+    let childComponent = findComponent(childId);
+    if (!childComponent)
+      return;
+    Object.entries(childSlots).forEach(([name, content]) => {
+      queueMicrotask(() => {
+        queueMicrotask(() => {
+          queueMicrotask(() => {
+            let fullName = parentId ? `${name}:${parentId}` : name;
+            let { startNode, endNode } = findSlotComments(childComponent.el, fullName);
+            if (!startNode || !endNode)
+              return;
+            let strippedContent = stripSlotComments(content, fullName);
+            morphPartial(childComponent, startNode, endNode, strippedContent);
+          });
+        });
+      });
+    });
+  });
+});
+function stripSlotComments(content, slotName) {
+  let startComment = `<!--[if SLOT:${slotName}]><![endif]-->`;
+  let endComment = `<!--[if ENDSLOT:${slotName}]><![endif]-->`;
+  let stripped = content.replace(startComment, "").replace(endComment, "");
+  return stripped.trim();
+}
+function findSlotComments(rootEl, slotName) {
+  let startNode = null;
+  let endNode = null;
+  walkElements(rootEl, (el, skip) => {
+    if (el.hasAttribute && el.hasAttribute("wire:id") && el !== rootEl) {
+      return skip();
+    }
+    Array.from(el.childNodes).forEach((node) => {
+      if (node.nodeType === Node.COMMENT_NODE) {
+        if (node.textContent === `[if SLOT:${slotName}]><![endif]`) {
+          startNode = node;
+        }
+        if (node.textContent === `[if ENDSLOT:${slotName}]><![endif]`) {
+          endNode = node;
+        }
+      }
+    });
+  });
+  return { startNode, endNode };
+}
+function walkElements(el, callback) {
+  let skip = false;
+  callback(el, () => skip = true);
+  if (skip)
+    return;
+  Array.from(el.children).forEach((child) => {
+    walkElements(child, callback);
+  });
+}
+function skipSlotContents(el, toEl, skipUntil) {
+  if (isStartMarker(el) && isStartMarker(toEl)) {
+    skipUntil((node) => isEndMarker(node));
+  }
+}
+function isStartMarker(el) {
+  return el.nodeType === 8 && el.textContent.startsWith("[if SLOT");
+}
+function isEndMarker(el) {
+  return el.nodeType === 8 && el.textContent.startsWith("[if ENDSLOT");
+}
+
+// js/morph.js
 function morph2(component, el, html) {
   let wrapperTag = el.parentElement ? el.parentElement.tagName.toLowerCase() : "div";
   let wrapper = document.createElement(wrapperTag);
@@ -9986,6 +10075,10 @@ function morph2(component, el, html) {
   }
   parentComponent && (wrapper.__livewire = parentComponent);
   let to = wrapper.firstElementChild;
+  to.setAttribute("wire:snapshot", component.snapshotEncoded);
+  let effects = { ...component.effects };
+  delete effects.html;
+  to.setAttribute("wire:effects", JSON.stringify(effects));
   to.__livewire = component;
   trigger("morph", { el, toEl: to, component });
   import_alpinejs8.default.morph(el, to, getMorphConfig(component));
@@ -10015,10 +10108,11 @@ function morphPartial(component, startNode, endNode, toHTML) {
 }
 function getMorphConfig(component) {
   return {
-    updating: (el, toEl, childrenOnly, skip, skipChildren) => {
+    updating: (el, toEl, childrenOnly, skip, skipChildren, skipUntil) => {
+      skipSlotContents(el, toEl, skipUntil);
       if (isntElement(el))
         return;
-      trigger("morph.updating", { el, toEl, component, skip, childrenOnly, skipChildren });
+      trigger("morph.updating", { el, toEl, component, skip, childrenOnly, skipChildren, skipUntil });
       if (el.__livewire_replace === true)
         el.innerHTML = toEl.innerHTML;
       if (el.__livewire_replace_self === true) {
@@ -10508,7 +10602,7 @@ function stripPartialComments(content, partialName) {
 function findPartialComments(rootEl, partialName) {
   let startNode = null;
   let endNode = null;
-  walkElements(rootEl, (el, skip) => {
+  walkElements2(rootEl, (el, skip) => {
     if (el.hasAttribute && el.hasAttribute("wire:id") && el !== rootEl) {
       return skip();
     }
@@ -10525,13 +10619,13 @@ function findPartialComments(rootEl, partialName) {
   });
   return { startNode, endNode };
 }
-function walkElements(el, callback) {
+function walkElements2(el, callback) {
   let skip = false;
   callback(el, () => skip = true);
   if (skip)
     return;
   Array.from(el.children).forEach((child) => {
-    walkElements(child, callback);
+    walkElements2(child, callback);
   });
 }
 
