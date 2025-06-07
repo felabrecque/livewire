@@ -6,18 +6,18 @@ use Livewire\Features\SupportDisablingBackButtonCache\HandlesDisablingBackButton
 use Livewire\Features\SupportPageComponents\HandlesPageComponents;
 use Livewire\Features\SupportReleaseTokens\HandlesReleaseTokens;
 use Livewire\Features\SupportJsEvaluation\HandlesJsEvaluation;
-use Livewire\Features\SupportFormObjects\HandlesFormObjects;
-use Livewire\Features\SupportValidation\HandlesValidation;
 use Livewire\Features\SupportAttributes\HandlesAttributes;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Livewire\Features\SupportValidation\HandlesValidation;
 use Livewire\Features\SupportStreaming\HandlesStreaming;
 use Livewire\Features\SupportRedirects\HandlesRedirects;
-use Livewire\Features\SupportPartials\HandlesPartials;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Features\SupportEvents\HandlesEvents;
 use Livewire\Exceptions\PropertyNotFoundException;
 use Livewire\Concerns\InteractsWithProperties;
 use Illuminate\Support\Traits\Macroable;
 use BadMethodCallException;
+use Livewire\Features\SupportFormObjects\HandlesFormObjects;
+use Livewire\V4\Slots\HandlesSlots;
 
 abstract class Component
 {
@@ -26,7 +26,6 @@ abstract class Component
     use AuthorizesRequests;
     use InteractsWithProperties;
     use HandlesEvents;
-    use HandlesPartials;
     use HandlesRedirects;
     use HandlesStreaming;
     use HandlesAttributes;
@@ -36,6 +35,7 @@ abstract class Component
     use HandlesReleaseTokens;
     use HandlesPageComponents;
     use HandlesDisablingBackButtonCache;
+    use HandlesSlots;
 
     protected $__id;
     protected $__name;
