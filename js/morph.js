@@ -1,6 +1,8 @@
 import { trigger } from "@/hooks"
 import { closestComponent } from "@/store"
 import Alpine from 'alpinejs'
+import { skipSlotContents } from "./features/supportSlots"
+import { skipIslandContents } from "./features/supportIslands"
 
 export function morph(component, el, html) {
     let wrapperTag = el.parentElement
@@ -20,6 +22,15 @@ export function morph(component, el, html) {
     parentComponent && (wrapper.__livewire = parentComponent)
 
     let to = wrapper.firstElementChild
+
+    // Set the snapshot and effects on the `to` element that way if there's a
+    // mismatch or problem the component will able to be re-initialized...
+    to.setAttribute('wire:snapshot', component.snapshotEncoded)
+
+    // Remove the 'html' key from the effects as the html will be morphed...
+    let effects = { ...component.effects }
+    delete effects.html
+    to.setAttribute('wire:effects', JSON.stringify(effects))
 
     to.__livewire = component
 
@@ -52,7 +63,7 @@ export function morph(component, el, html) {
     trigger('morphed', { el, component })
 }
 
-export function morphPartial(component, startNode, endNode, toHTML) {
+export function morphIsland(component, startNode, endNode, toHTML) {
     let fromContainer = startNode.parentElement
     let fromContainerTag = fromContainer ? fromContainer.tagName.toLowerCase() : 'div'
 
@@ -76,21 +87,22 @@ export function morphPartial(component, startNode, endNode, toHTML) {
         parentProviderWrapper.__livewire = parentComponent
     }
 
-    trigger('partial.morph', { startNode, endNode, component })
+    trigger('island.morph', { startNode, endNode, component })
 
     Alpine.morphBetween(startNode, endNode, toContainer, getMorphConfig(component))
 
-    trigger('partial.morphed', { startNode, endNode, component })
+    trigger('island.morphed', { startNode, endNode, component })
 }
 
 function getMorphConfig(component) {
     return {
         updating: (el, toEl, childrenOnly, skip, skipChildren, skipUntil) => {
             skipSlotContents(el, toEl, skipUntil)
+            skipIslandContents(component, el, toEl, skipUntil)
 
             if (isntElement(el)) return
 
-            trigger('morph.updating', { el, toEl, component, skip, childrenOnly, skipChildren })
+            trigger('morph.updating', { el, toEl, component, skip, childrenOnly, skipChildren, skipUntil })
 
             // bypass DOM diffing for children by overwriting the content
             if (el.__livewire_replace === true) el.innerHTML = toEl.innerHTML;
