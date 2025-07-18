@@ -18,7 +18,7 @@ class DefaultIsland
     {
         app(ExtendBlade::class)->startLivewireRendering($this->component);
 
-        $componentData = Utils::getPublicPropertiesDefinedOnSubclass($this->component);
+        $componentData = app(Utils::class)::getPublicPropertiesDefinedOnSubclass($this->component);
 
         // We need to ensure that the component instance is available in the island view, so any nested islands can access it...
         $output = view($this->view, array_merge($componentData, ['__livewire' => $this->component]))->render();

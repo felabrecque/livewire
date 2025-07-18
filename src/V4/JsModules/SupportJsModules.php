@@ -21,7 +21,7 @@ class SupportJsModules extends ComponentHook
                 throw new \Exception('Component '.$component.' does not have a JS module source.');
             }
 
-            return Utils::pretendResponseIsFileFromString(
+            return app(Utils::class)::pretendResponseIsFileFromString(
                 $source,
                 $filemtime,
                 $component.'.js',

@@ -89,7 +89,7 @@ class HandleComponents extends Mechanism
         $htmlAttributes = [];
 
         // Get component's properties and mount method parameters
-        $componentProperties = Utils::getPublicPropertiesDefinedOnSubclass($component);
+        $componentProperties = app(Utils::class)::getPublicPropertiesDefinedOnSubclass($component);
         $mountParams = $this->getMountMethodParameters($component);
 
         foreach ($params as $key => $value) {
@@ -299,7 +299,7 @@ class HandleComponents extends Mechanism
 
     protected function hydratePropertyUpdate($valueOrTuple, $context, $path, $raw)
     {
-        if (! Utils::isSyntheticTuple($value = $tuple = $valueOrTuple)) return $value;
+        if (! app(Utils::class)::isSyntheticTuple($value = $tuple = $valueOrTuple)) return $value;
 
         [$value, $meta] = $tuple;
 
