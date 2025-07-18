@@ -37,7 +37,7 @@ class SupportRefs extends ComponentHook
 
             if (! $ref) return;
 
-            $replaceHtml(Utils::insertAttributesIntoHtmlRoot($html, [
+            $replaceHtml(app(Utils::class)::insertAttributesIntoHtmlRoot($html, [
                 'wire:ref' => $ref,
             ]));
         };
