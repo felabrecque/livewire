@@ -228,6 +228,8 @@ class BrowserTest extends \Tests\BrowserTestCase
         ->assertSee('Loading "myModel"...')
         ->assertDontSee('Loading "prop2"...')
 
+        ->waitUntilMissingText('Loading "prop"...')
+
         ->type('@input2', 'Hello Caleb')
 		->waitForText('Loading "prop2"...')
         ->assertSee('Loading "prop2"...')
@@ -289,6 +291,99 @@ class BrowserTest extends \Tests\BrowserTestCase
         ->pause(250)
         ->assertDontSee('Waiting to process...')
         ->assertSee('Processing...')
+        ;
+    }
+
+    function test_wire_target_works_with_multiple_function_including_multiple_params()
+    {
+        Livewire::visit(new class extends Component {
+
+            public function render()
+            {
+                return <<<'HTML'
+                    <div>
+                        <button wire:click="processFunction('1', 2)" dusk="process1Button">Process 1 and 2</button>
+                        <button wire:click="processFunction('3', 4)" dusk="process2Button">Process 3 adn 4</button>
+                        <button wire:click="resetFunction" dusk="resetButton">Reset</button>
+                        <div wire:loading wire:target="resetFunction" dusk="loadingIndicator">
+                            Waiting to process...
+                        </div>
+                        <div wire:loading wire:target="processFunction('1', 2), processFunction('3', 4)" dusk="loadingIndicator2">
+                            Processing...
+                        </div>
+                    </div>
+                HTML;
+            }
+
+            public function processFunction(string $value)
+            {
+                usleep(500000); // Simulate some processing time.
+            }
+            public function resetFunction()
+            {
+                usleep(500000); // Simulate reset time.
+            }
+        })
+            ->press('@resetButton')
+            ->pause(250)
+            ->waitForText('Waiting to process...')
+            ->assertSee('Waiting to process...')
+            ->assertDontSee('Processing...')
+            ->waitUntilMissingText('Waiting to process...')
+            ->press('@process1Button')
+            ->pause(250)
+            ->assertDontSee('Waiting to process...')
+            ->assertSee('Processing...')
+            ->press('@resetButton')
+            ->waitForText('Waiting to process...')
+            ->assertSee('Waiting to process...')
+            ->waitUntilMissingText('Waiting to process...')
+            ->press('@process2Button')
+            ->pause(250)
+            ->assertDontSee('Waiting to process...')
+            ->assertSee('Processing...')
+        ;
+    }
+
+    function test_wire_target_works_with_function_JSONparse_params()
+    {
+        Livewire::visit(new class extends Component {
+
+            public function render()
+            {
+                return <<<'HTML'
+                    <div>
+                        <button wire:click="processFunction(@js(['bar' => 'baz']))" dusk="processButton">Process</button>
+                        <button wire:click="resetFunction" dusk="resetButton">Reset</button>
+                        <div wire:loading wire:target="resetFunction" dusk="loadingIndicator">
+                            Waiting to process...
+                        </div>
+                        <div wire:loading wire:target="processFunction" dusk="loadingIndicator2">
+                            Processing...
+                        </div>
+                    </div>
+                HTML;
+            }
+
+            public function processFunction(mixed $value)
+            {
+                usleep(500000); // Simulate some processing time.
+            }
+            public function resetFunction()
+            {
+                usleep(500000); // Simulate reset time.
+            }
+        })
+            ->press('@resetButton')
+            ->pause(250)
+            ->waitForText('Waiting to process...')
+            ->assertSee('Waiting to process...')
+            ->assertDontSee('Processing...')
+            ->waitUntilMissingText('Waiting to process...')
+            ->press('@processButton')
+            ->pause(250)
+            ->assertDontSee('Waiting to process...')
+            ->assertSee('Processing...')
         ;
     }
 
@@ -366,6 +461,31 @@ class BrowserTest extends \Tests\BrowserTestCase
         ->type('@input', 'Foo')
 		->waitForText('Foo')
         ->assertSee('Foo')
+        ;
+    }
+
+    function test_wire_loading_targets_exclude_wire_navigate()
+    {
+        Livewire::visit(new class extends Component {
+            public function hydrate()
+            {
+                sleep(1);
+            }
+
+            public function render()
+            {
+                return <<<'HTML'
+                    <div>
+                        <a href="/otherpage" wire:navigate dusk="link" class="text-blue-500" wire:loading.class="text-red-500">Link</a>
+                        <button type="button" wire:click="$refresh" dusk="refresh-button">Refresh</button>
+                    </div>
+                HTML;
+            }
+        })
+        ->assertHasClass('@link', 'text-blue-500')
+        ->click('@refresh-button')
+        ->pause(5)
+        ->assertHasClass('@link', 'text-red-500')
         ;
     }
 }

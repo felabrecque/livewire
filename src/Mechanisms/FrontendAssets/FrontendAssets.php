@@ -89,6 +89,9 @@ class FrontendAssets extends Mechanism
         return app(Utils::class)::pretendResponseIsFile(__DIR__.'/../../../dist/livewire.min.js.map');
     }
 
+    /**
+     * @return string
+     */
     public static function styles($options = [])
     {
         app(static::class)->hasRenderedStyles = true;
@@ -102,7 +105,7 @@ class FrontendAssets extends Mechanism
         $html = <<<HTML
         <!-- Livewire Styles -->
         <style {$nonce}>
-            [wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {
+            [wire\:loading][wire\:loading], [wire\:loading\.delay][wire\:loading\.delay], [wire\:loading\.list-item][wire\:loading\.list-item], [wire\:loading\.inline-block][wire\:loading\.inline-block], [wire\:loading\.inline][wire\:loading\.inline], [wire\:loading\.block][wire\:loading\.block], [wire\:loading\.flex][wire\:loading\.flex], [wire\:loading\.table][wire\:loading\.table], [wire\:loading\.grid][wire\:loading\.grid], [wire\:loading\.inline-flex][wire\:loading\.inline-flex] {
                 display: none;
             }
 
@@ -129,12 +132,19 @@ class FrontendAssets extends Mechanism
             [wire\:cloak] {
                 display: none !important;
             }
+
+            dialog#livewire-error::backdrop {
+                background-color: rgba(0, 0, 0, .6);
+            }
         </style>
         HTML;
 
         return static::minify($html);
     }
 
+    /**
+     * @return string
+     */
     public static function scripts($options = [])
     {
         app(static::class)->hasRenderedScripts = true;

@@ -1,6 +1,6 @@
 import { dataSet, deepClone, diff, extractData} from '@/utils'
 import { generateWireObject } from '@/$wire'
-import { closestComponent, findComponent } from '@/store'
+import { closestComponent, findComponent, hasComponent } from '@/store'
 import { trigger } from '@/hooks'
 
 export class Component {
@@ -107,6 +107,12 @@ export class Component {
         return diff
     }
 
+    getUpdates() {
+        let propertiesDiff = diff(this.canonical, this.ephemeral)
+
+        return this.mergeQueuedUpdates(propertiesDiff)
+    }
+
     applyUpdates(object, updates) {
         for (let key in updates) {
             dataSet(object, key, updates[key])
@@ -143,11 +149,34 @@ export class Component {
         let meta = this.snapshot.memo
         let childIds = Object.values(meta.children).map(i => i[1])
 
-        return childIds.map(id => findComponent(id))
+        return childIds
+            .filter(id => hasComponent(id))
+            .map(id => findComponent(id))
+    }
+
+    get islands() {
+        let islands = this.snapshot.memo.islands
+
+        return islands
     }
 
     get parent() {
         return closestComponent(this.el.parentElement)
+    }
+
+    getEncodedSnapshotWithLatestChildrenMergedIn() {
+        let { snapshotEncoded, children, snapshot } = this
+        let childIds = children.map(child => child.id)
+
+        let filteredChildren = Object.fromEntries(
+            Object.entries(snapshot.memo.children)
+                .filter(([key, value]) => childIds.includes(value[1]))
+        )
+
+        return snapshotEncoded.replace(
+            /"children":\{[^}]*\}/,
+            `"children":${JSON.stringify(filteredChildren)}`
+        )
     }
 
     inscribeSnapshotAndEffectsOnElement() {
